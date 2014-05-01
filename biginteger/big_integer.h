@@ -6,7 +6,8 @@
 
 class big_integer {
 private:
-    const static int BSZE = 30;
+    const static int BSZE = 30; // base size
+    const static int ISZE = 32; // element of 'a' size
     const static int BASE = (int)(1 << BSZE);
     int sign;
     int * a, a_size;
@@ -25,6 +26,7 @@ public:
 
     bool is_zero() const;
     int cmp(const big_integer&) const;
+    int get_length() const;
 
     big_integer abs() const;
 

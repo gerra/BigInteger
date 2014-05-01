@@ -106,6 +106,10 @@ int big_integer::cmp(const big_integer& b) const {
     return 0;
 }
 
+int big_integer::get_length() const {
+    return n * BSZE;
+}
+
 big_integer big_integer::operator-() const {
     big_integer res = big_integer(*this);
     res.sign *= (-1);
@@ -373,11 +377,74 @@ big_integer& big_integer::operator^=(const big_integer& b) {
 }
 
 big_integer& big_integer::operator>>=(int b) {
+    // negative !!!
+    //std::cout<<a[1];
+    int shift = b % BSZE; // real shift
+    int nil_cnt = b / BSZE; // first nil_cnt digits will be deleted
+                            // last nil_cnt digits will be nils
 
+    for (int i = nil_cnt; i < n; ++i) {
+        unsigned int cur, to_prev;
+
+        to_prev = 0;
+        for (int j = 0; j < shift; ++j) {
+            to_prev |= (1 << j); // first bits to prev digits
+        }
+        to_prev &= a[i]; // bits of current digit, sure
+        to_prev <<= (BSZE - shift); // in next digits last bits will be first bits
+
+        cur = a[i];
+        cur >>= shift;
+
+        a[i] = cur;
+        if (i > 0)
+           a[i - 1] |= to_prev;
+    }
+    //std::cout << a[1] << " !\n";
+    for (int i = nil_cnt; i < n; ++i)
+        a[i - nil_cnt] = a[i];
+    for (int i = n - nil_cnt; i < n; ++i)
+        a[i] = 0;
+
+    delete_nils();
+    ensure_capacity();
+    return *this;
 }
 
 big_integer& big_integer::operator<<=(int b) {
+    int shift = b % BSZE; // real shift
+    int nil_cnt = b / BSZE; // last digits will be nils
+    n++; // for last digit (a[n - 1] -> a[n])
+    ensure_capacity();
+    for (int i = n - 2; i >= 0; --i) {
+        unsigned int cur, to_next;
 
+        to_next = 0;
+        for (int j = BSZE - shift; j < BSZE; ++j) {
+            to_next |= (1 << j); // last bits to next digits
+        }
+        to_next &= a[i]; // bits of current digint, sure
+        to_next >>= (BSZE - shift); // in next digits last bits will be first bits
+
+        cur = a[i];
+        cur <<= shift;
+        for (int j = BSZE; j < ISZE; ++j) {
+            cur &= ~(1U << j); // last bits = 0
+        }
+
+        a[i] = cur;
+        a[i + 1] |= to_next;
+    }
+    n += nil_cnt;
+    ensure_capacity();
+    for (int i = n + nil_cnt - 1; i >= nil_cnt; --i) {
+        a[i] = a[i - nil_cnt];
+    }
+    for (int i = 0; i < nil_cnt; ++i) {
+        a[i] = 0;
+    }
+    delete_nils();
+    return *this;
 }
 
 bool operator<(const big_integer& a, const big_integer& b) {
@@ -474,18 +541,23 @@ big_integer operator<<(big_integer a, int b) {
 }
 
 std::string to_string(const big_integer &a) {
+    char char_res[a.get_length()];
+    int last = 0;
     std::string res;
-    if (a.is_zero())
-        res = "0";
+    if (a.is_zero()) {
+        char_res[last++] = '0';
+    }
     big_integer other = a;
     while (!other.is_zero()) {
         int cur;
         other.divmod(10, other, cur);
-        res = (std::string)"" + (char)('0' + cur) + res;
+        char_res[last++] = '0' + cur;
     }
     if (a < 0) {
-        res = (std::string)"" + '-' + res;
+        char_res[last++] = '-';
     }
+    for (int i = last - 1; i >=0; --i)
+        res += char_res[i];
     return res;
 }
 
