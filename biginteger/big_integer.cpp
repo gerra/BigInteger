@@ -9,8 +9,11 @@ big_integer::big_integer() {
     sign = 0;
 }
 
+big_integer::~big_integer() {}
+
 big_integer::big_integer(const big_integer& other) {
-    *this = other;
+    if (*this != other)
+        *this = other;
 }
 
 big_integer::big_integer(int x) {
@@ -52,6 +55,8 @@ big_integer::big_integer(std::string const& s) {
 }
 
 big_integer& big_integer::operator=(const big_integer& other) {
+    if (*this == other)
+        return *this;
     n = other.n;
     a_size = other.a_size;
     sign = other.sign;
@@ -216,7 +221,7 @@ big_integer& big_integer::operator*=(const big_integer& b) {
         *this = res;
         return *this;
     }
-    res.n = n + b.n + 1;
+    res.n = n + b.n + 5; // just 5 for save
     res.ensure_capacity();
     for (int i = 0; i < res.n; ++i)
         res.a[i] = 0;
@@ -234,13 +239,69 @@ big_integer& big_integer::operator*=(const big_integer& b) {
     return *this;
 }
 
-// b =/= 0 !!
-//big_integer& big_integer::operator/=(const big_integer& b) {
-//    if (abs() < b.abs()) {
-//        *this = 0;
-//        return *this;
-//    }
-//}
+big_integer& big_integer::operator/=(const big_integer& b) {
+    big_integer mod;
+    divmod(b, *this, mod);
+    return *this;
+}
+
+big_integer& big_integer::operator%=(const big_integer& b) {
+    big_integer div;
+    divmod(b, div, *this);
+    return *this;
+}
+
+void big_integer::divmod(const big_integer& b, big_integer& res_div, big_integer& res_mod) const {
+    if (abs() < b.abs()) {
+        res_div = 0;
+        res_mod = 0;
+        return;
+    }
+
+    big_integer arg = *this;
+    big_integer div = b;
+    big_integer res;
+
+    res.sign = arg.sign * div.sign;;
+
+    arg = arg.abs();
+    div = div.abs();
+
+    int shift = arg.n - div.n;
+
+    res.n = shift + 1;
+    res.ensure_capacity();
+
+    big_integer shifted_arg;
+    big_integer mult;
+
+    for (int i = shift; i >= 0; --i) {
+        // find current digit using binary search
+        int l = 0;
+        int r = BASE - 1;
+        shifted_arg = arg >> i * BSZE;
+        for (int j = 0; j <= BSZE; ++j) {
+            int m = (l + r) / 2;
+            if (m * div <= shifted_arg)
+                l = m;
+            else
+                r = m;
+        }
+        mult = l;
+        mult *= div;
+
+        mult <<= (i * BSZE);
+        arg -= mult;
+        res.a[i] = l;
+    }
+    if (arg.is_zero())
+        arg.sign = 0;
+    res.delete_nils();
+    arg.delete_nils();
+    arg.sign *= sign;
+    res_div = res;
+    res_mod = arg;
+}
 
 big_integer& big_integer::operator/=(int b) {
     int mod;
@@ -286,7 +347,13 @@ big_integer& big_integer::operator&=(const big_integer& b) {
         return *this;
     }
     if (*this > 0 && b < 0) {
-        *this = *this & (~(b - 1)).abs();
+        big_integer b_copy = -b;
+        for (int i = 0; i < b_copy.n; ++i)
+            b_copy.a[i] = ~b_copy.a[i];
+        ++b_copy;
+        //big_integer pos = b.abs();
+        *this = *this & b_copy;
+        //*this = *this & ~pos;
         return *this;
     }
     if (*this < 0 && b > 0) {
@@ -299,6 +366,8 @@ big_integer& big_integer::operator&=(const big_integer& b) {
         a[i] &= (i < b.n ? b.a[i] : 0);
     }
     delete_nils();
+    if (is_zero())
+        *this = 0;
     return *this;
 }
 
@@ -377,8 +446,14 @@ big_integer& big_integer::operator^=(const big_integer& b) {
 }
 
 big_integer& big_integer::operator>>=(int b) {
-    // negative !!!
-    //std::cout<<a[1];
+    if (b == 0 || is_zero()) {
+        return *this;
+    }
+    if (sign < 0) {
+        *this = -((abs() >> b) + 1);
+        return *this;
+    }
+
     int shift = b % BSZE; // real shift
     int nil_cnt = b / BSZE; // first nil_cnt digits will be deleted
                             // last nil_cnt digits will be nils
@@ -400,7 +475,7 @@ big_integer& big_integer::operator>>=(int b) {
         if (i > 0)
            a[i - 1] |= to_prev;
     }
-    //std::cout << a[1] << " !\n";
+
     for (int i = nil_cnt; i < n; ++i)
         a[i - nil_cnt] = a[i];
     for (int i = n - nil_cnt; i < n; ++i)
@@ -412,6 +487,9 @@ big_integer& big_integer::operator>>=(int b) {
 }
 
 big_integer& big_integer::operator<<=(int b) {
+    if (b == 0 || is_zero()) {
+        return *this;
+    }
     int shift = b % BSZE; // real shift
     int nil_cnt = b / BSZE; // last digits will be nils
     n++; // for last digit (a[n - 1] -> a[n])
@@ -510,10 +588,15 @@ int operator%(big_integer a, const int& b) {
     return mod;
 }
 
-//big_integer operator/(big_integer a, const big_integer& b) {
-//    a /= b;
-//    return a;
-//}
+big_integer operator/(big_integer a, const big_integer& b) {
+    a /= b;
+    return a;
+}
+
+big_integer operator%(big_integer a, const big_integer& b) {
+    a %= b;
+    return a;
+}
 
 big_integer operator&(big_integer a, const big_integer& b) {
     a &= b;

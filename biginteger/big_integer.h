@@ -7,7 +7,7 @@
 class big_integer {
 private:
     const static int BSZE = 30; // base size
-    const static int ISZE = 32; // element of 'a' size
+    const static int ISZE = 32; // size of a[]'s element
     const static int BASE = (int)(1 << BSZE);
     int sign;
     int * a, a_size;
@@ -15,6 +15,7 @@ private:
 
 public:
     big_integer();
+    ~big_integer();
     big_integer(const big_integer&);
     big_integer(int);
     explicit big_integer(const std::string&);
@@ -22,6 +23,7 @@ public:
     big_integer& operator=(const big_integer&);
 
     void ensure_capacity();
+    void set_nils();
     void delete_nils();
 
     bool is_zero() const;
@@ -43,6 +45,7 @@ public:
     big_integer& operator-=(const big_integer&);
     big_integer& operator*=(const big_integer&);
     big_integer& operator/=(const big_integer&);
+    big_integer& operator%=(const big_integer&);
     big_integer& operator/=(int);
 
     big_integer& operator&=(const big_integer&);
@@ -52,6 +55,7 @@ public:
     big_integer& operator<<=(int);
 
     void divmod(int, big_integer&, int&) const;
+    void divmod(const big_integer&, big_integer&, big_integer&) const;
 };
 
 bool operator<(const big_integer&, const big_integer&);
@@ -65,6 +69,7 @@ big_integer operator+(big_integer, const big_integer&);
 big_integer operator-(big_integer, const big_integer&);
 big_integer operator*(big_integer, const big_integer&);
 big_integer operator/(big_integer, const big_integer&);
+big_integer operator%(big_integer, const big_integer&);
 
 big_integer operator&(big_integer, const big_integer&);
 big_integer operator|(big_integer, const big_integer&);
