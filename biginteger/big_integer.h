@@ -19,11 +19,10 @@ public:
     big_integer(const big_integer&);
     big_integer(int);
     explicit big_integer(const std::string&);
-
+\
     big_integer& operator=(const big_integer&);
 
-    void ensure_capacity();
-    void set_nils();
+    void copy_to(const big_integer&);
     void delete_nils();
 
     bool is_zero() const;
@@ -53,6 +52,22 @@ public:
     big_integer& operator ^=(const big_integer&);
     big_integer& operator >>=(int);
     big_integer& operator <<=(int);
+
+    void negate();
+    void absolute();
+
+    void add(const big_integer&);
+    void subtract(const big_integer&);
+    void multiply(const big_integer&);
+    void divide(const big_integer&);
+    void modulo(const big_integer&);
+    void divide_int(int);
+
+    void my_and(const big_integer&);
+    void my_or(const big_integer&);
+    void my_xor(const big_integer&);
+    void lsh(int);
+    void rsh(int);
 
     void divmod(int, big_integer&, int&) const;
     void divmod(const big_integer&, big_integer&, big_integer&) const;
