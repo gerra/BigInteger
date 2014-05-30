@@ -19,7 +19,7 @@ public:
     big_integer(const big_integer&);
     big_integer(int);
     explicit big_integer(const std::string&);
-\
+
     big_integer& operator=(const big_integer&);
 
     void copy_to(const big_integer&);

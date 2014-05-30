@@ -303,6 +303,7 @@ void big_integer::divmod(const big_integer& b, big_integer& res_div, big_integer
         shifted_arg.copy_to(arg);
         shifted_arg.rsh(i * BSZE);
         for (int j = 0; j <= BSZE; ++j) {
+        //while (l + 1 != r) {
             int m = (l + r) / 2;
             big_integer big_m;
             big_m.a[0] = m;
