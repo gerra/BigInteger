@@ -54,7 +54,6 @@ big_integer& big_integer::operator =(const big_integer& other) {
 
 void big_integer::copy_to(const big_integer& other) {
     sign = other.sign;
-    //a.clear();
     a = other.a;
 }
 
@@ -64,7 +63,7 @@ void big_integer::delete_nils() {
 }
 
 bool big_integer::is_zero() const {
-    return (a.size() == 1 && a[0] == 0);
+    return ((int)a.size() == 1 && a[0] == 0);
 }
 
 big_integer big_integer::abs() const {
@@ -171,12 +170,12 @@ void big_integer::add(const big_integer& b) {
         return;
     }
     a.push_back(0); a.push_back(0);
-    int carry = 0;
+    unsigned int carry = 0;
     int it_count = std::max((int)a.size(), (int)b.a.size());
     for (int i = 0; i < it_count || carry; ++i) {
         int f = (i < (int)a.size() ? a[i] : 0);
         int s = (i < (int)b.a.size() ? b.a[i] : 0);
-        int cur = f + s + carry;
+        unsigned int cur = f + s + carry;
 
         a[i] = cur % BASE;
         carry = cur / BASE;
@@ -212,10 +211,12 @@ void big_integer::subtract(const big_integer& b) {
     }
     int carry = 0;
     for (int i = 0; i < (int)b.a.size() || carry; ++i) {
-        a[i] -= carry + (i < (int)b.a.size() ? b.a[i] : 0);
-        carry = a[i] < 0;
+        int cur = a[i];
+        cur -= carry + (i < (int)b.a.size() ? b.a[i] : 0);
+        carry = cur < 0;
         if (carry)
-            a[i] += BASE;
+            cur += BASE;
+        a[i] = cur;
     }
     delete_nils();
     if (is_zero())
@@ -230,7 +231,7 @@ void big_integer::multiply(const big_integer& b) {
         return;
     }
 
-    res.a.resize((int)a.size() + (int)b.a.size() + 5, 0);
+    res.a.resize((int)a.size() + (int)b.a.size() + 5);
     for (int i = 0; i < (int)a.size(); ++i) {
         int carry = 0;
         for (int j = 0; j < (int)b.a.size() || carry; ++j) {
@@ -240,6 +241,27 @@ void big_integer::multiply(const big_integer& b) {
         }
     }
     copy_to(res);
+    delete_nils();
+}
+
+void big_integer::multiply(int b) {
+    if (b == 0 || is_zero()) {
+        big_integer res;
+        copy_to(res);
+        return;
+    }
+    int carry = 0;
+    if (b < 0) {
+        sign *= (-1);
+        b = -b;
+    }
+    for (int i = 0; i < (int)a.size() || carry; ++i) {
+        if (i == (int)a.size())
+            a.push_back(0);
+        long long cur = carry + a[i] * 1ll * b;
+        a[i] = int(cur % BASE);
+        carry = int(cur / BASE);
+    }
     delete_nils();
 }
 
@@ -260,17 +282,18 @@ big_integer& big_integer::operator *=(const big_integer& b) {
 
 big_integer& big_integer::operator /=(const big_integer& b) {
     big_integer mod;
-    divmod(b, *this, mod);
+    divmod(b, *this, mod, false);
     return *this;
 }
 
 big_integer& big_integer::operator %=(const big_integer& b) {
     big_integer div;
-    divmod(b, div, *this);
+    divmod(b, div, *this, true);
     return *this;
 }
 
-void big_integer::divmod(const big_integer& b, big_integer& res_div, big_integer& res_mod) const {
+
+void big_integer::divmod(const big_integer& b, big_integer& res_div, big_integer& res_mod, bool need_mod) const {
     if (abs() < b.abs()) {
         big_integer res1;
         res_div = res1;
@@ -288,51 +311,58 @@ void big_integer::divmod(const big_integer& b, big_integer& res_div, big_integer
     arg.absolute();
     div.absolute();
 
-    int shift = (int)arg.a.size() - (int)div.a.size();
-    res.a = std::vector<int>(shift + 1, 0);
-
-    big_integer shifted_arg;
-    big_integer mult;
-
-    big_integer cur;
-
-    for (int i = shift; i >= 0; --i) {
-        // find current digit using binary search
-        int l = 0;
-        int r = BASE - 1;
-        shifted_arg.copy_to(arg);
-        shifted_arg.rsh(i * BSZE);
-        for (int j = 0; j <= BSZE; ++j) {
-        //while (l + 1 != r) {
-            int m = (l + r) / 2;
-            big_integer big_m;
-            big_m.a[0] = m;
-            big_m.sign = (int)(m > 0);
-            cur.copy_to(big_m);
-
-            cur.multiply(div);
-            int check_cmp = shifted_arg.cmp(cur);
-            if (check_cmp >= 0)
-                l = m;
-            else
-                r = m;
-        }\
-        //
-        big_integer big_l;
-        big_l.a[0] = l;
-        big_l.sign = (int)(l > 0);
-        mult.copy_to(big_l);
-
-        mult.multiply(div);
-        mult.lsh(i * BSZE);
-        arg.subtract(mult);
-
-        res.a[i] = l;
+    int ext_mul = 1, ext_shift = 0;
+    while (ext_mul * div.a.back() < BASE / 2) {
+        ext_mul *= 2;
+        ext_shift++;
     }
+    if (ext_mul != 1) {
+        arg.lsh(ext_shift);
+        div.lsh(ext_shift);
+    }
+
+    int n, m;
+    n = div.a.size();
+    m = arg.a.size() - div.a.size();
+
+    res.a.resize(m + 1);
+
+    big_integer shifted, sub;
+    shifted.copy_to(div);
+    shifted.lsh(m * BSZE);
+    if (arg >= shifted) {
+        res.a[m] = 1;
+        arg.subtract(shifted);
+    } else {
+        res.a[m] = 0;
+    }
+
+    for (int j = m - 1; j >= 0; --j) {
+        long long cur = 1LL * (n + j < (int)arg.a.size() ? arg.a[n + j] : 0) * BASE +
+                (n + j - 1 < (int)arg.a.size() ? arg.a[n + j - 1] : 0);
+
+        cur /= div.a[n - 1];
+        if (BASE - 1 < cur)
+            cur = BASE - 1;
+        res.a[j] = cur;
+        shifted.rsh(BSZE);
+        sub.copy_to(shifted);
+        sub.multiply(res.a[j]);
+        arg.subtract(sub);
+        while (arg.sign == -1) {
+            res.a[j]--;
+            arg.add(shifted);
+        }
+    }
+
     if (arg.is_zero())
         arg.sign = 0;
     res.delete_nils();
     arg.delete_nils();
+    if (need_mod && ext_mul != 1) {
+        arg.rsh(ext_shift); // normalization of remainder
+        arg.delete_nils();
+    }
     arg.sign *= sign;
     res_div.copy_to(res);
     res_mod.copy_to(arg);
@@ -359,8 +389,10 @@ void big_integer::divmod(int b, big_integer& div, int& mod) const {
         carry = int(cur % b);
     }
     other.delete_nils();
-    if (other.is_zero())
-        other = 0;
+    if (other.is_zero()) {
+        big_integer res;
+        other.copy_to(res);
+    }
     mod = carry;
     div.copy_to(other);
 }
@@ -377,7 +409,8 @@ void big_integer::my_and(const big_integer& b) {
      * (-a) & (b)  = (b) & (-a)
     */
     if (is_zero() || b.is_zero()) {
-        *this = 0;
+        big_integer res;
+        copy_to(res);
         return;
     }
     if (*this < 0 && b < 0) {
@@ -531,7 +564,6 @@ void big_integer::rsh(int b) {
         rsh(b);
         add(1);
         negate();
-        //*this = -((abs() >> b) + 1);
         return;
     }
 
@@ -658,13 +690,13 @@ int operator %(big_integer a, const int& b) {
 
 big_integer operator /(big_integer a, const big_integer& b) {
     big_integer mod;
-    a.divmod(b, a, mod);
+    a.divmod(b, a, mod, false);
     return a;
 }
 
 big_integer operator %(big_integer a, const big_integer& b) {
     big_integer div;
-    a.divmod(b, div, a);
+    a.divmod(b, div, a, true);
     return a;
 }
 
