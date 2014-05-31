@@ -11,144 +11,200 @@ using namespace std;
 template <class T>
 struct my_vector {
 private:
-    const static int S_SIZE = 10;
-    int sze;
-    vector<T> * store;
-    T small[S_SIZE];
+    struct vector_value {
+        int ptr_cnt;
+        const static int S_SIZE = 15;
+        int sze;
+        vector<T> * store;
+        T small[S_SIZE];
+
+        vector_value() {
+            vector_value(0);
+        }
+
+        ~vector_value() {
+           delete store;
+        }
+
+        vector_value(int n_size) {
+            ptr_cnt = 0;
+            if (n_size < 0) {
+                /// exception !!!
+            } else if (n_size <= S_SIZE) {
+                for (int i = 0; i < S_SIZE; ++i)
+                    small[i] = 0;
+                store = NULL;
+            } else {
+                store = new vector<T>(n_size);
+            }
+            sze = n_size;
+        }
+
+        vector_value(const vector_value * other) {
+            ptr_cnt = 0;
+            sze = other->sze;
+            if (sze <= S_SIZE) {
+                /*cout << "we're copying small obj ...\n";*/
+                memcpy(small, other->small, sizeof(other->small));
+                store = NULL;
+            } else {
+                store = new vector<T>(sze + 1);
+                *store = *other->store;
+            }
+        }
+
+        void push_back(T x) {
+            // we're usng small object
+            if (sze < S_SIZE) {
+                /*cout << "we're pushing back to small obj ...\n";*/
+                small[sze] = x;
+                /*cout << "small object exists: \n";
+                for (int i = 0; i < S_SIZE; ++i)
+                    cout << small[i] << " ";
+                cout << "\n";*/
+            } else if (sze == S_SIZE) {
+                /*cout << "we're creating big obj ... \n";
+                cout << "small object exists: \n";
+                for (int i = 0; i < S_SIZE; ++i)
+                    cout << small[i] << " ";
+                cout << "\n";*/
+
+                // we should use big object
+                store = new vector<T>(S_SIZE);
+                for (int i = 0; i < S_SIZE; ++i) {
+                    (*store)[i] = small[i];
+                    /*cout << i << " " << "\n";
+                    cout << "sizeof store " << sizeof(store) << "\n";
+                    cout << "sizeof small " << sizeof(small) << "\n";
+                    cout << i << " small object exists: \n";
+                    for (int i = 0; i < S_SIZE; ++i)
+                        cout << small[i] << " ";
+                    cout << "\n";*/
+                }
+                (*store).push_back(x);
+                /*cout << "current size of big obj after PB is " << (*store).size() << "\n";
+
+                cout << "big object exists: \n";
+                for (int i = 0; i < (int)(*store).size(); ++i)
+                    cout << (*store)[i] << " ";
+                cout << "\n";*/
+            }
+            // we're using big object
+            else
+                (*store).push_back(x);
+            ++sze;
+        }
+
+        void pop_back() {
+            // we're using big object
+            if (sze > S_SIZE) {
+                (*store).pop_back();
+                // we can use small object
+                if (sze - 1 == S_SIZE) {
+                    /*cout << "we're copying everything to big obj ...\n";*/
+                    // copying to small object
+                    for (int i = 0; i < S_SIZE; ++i)
+                        small[i] = (*store)[i];
+                    // we don't need big object anymore
+                    delete store;
+                    store = NULL;
+                    /*cout << "we've done with it ...\n";*/
+                }
+            } else if (sze == 0) {
+                /// exception !!!!!!!!!!!!!
+            }
+            --sze;
+        }
+
+        T back() const {
+            if (sze <= S_SIZE && sze > 0)
+                return small[sze - 1];
+            else if (sze > S_SIZE) {
+                /*cout << "we're extracting from big obj ... \n";*/
+                return (*store).back();
+            } else {
+                /// exception !!!!!!!!!!!!!
+                throw "not enough elements";
+            }
+        }
+    };
+
+    vector_value * value;
 
 public:
     my_vector() {
-        sze = 0;
-        store = NULL;
+        value = new vector_value(0);
+        ++value->ptr_cnt;
     }
 
     my_vector(const my_vector& other) {
-        *this = other;
+        value = other.value;
+        ++value->ptr_cnt;
     }
 
     ~my_vector() {
         /*cout << "we're in destructor\n";*/
-        delete store;
-        //delete[] small;
+        if (--value->ptr_cnt == 0)
+            delete value;
     }
 
     my_vector& operator = (const my_vector& other) {
-        sze = other.sze;
-        if (sze <= S_SIZE) {
-            memcpy(small, other.small, sizeof(other.small));
-            store = NULL;
-        } else {
-            /*cout << "we're in = from my_vector\n";*/
-            store = new vector<T>(sze+1);
-            *store = *other.store;
-            /*for (int i = 0; i < sze; ++i)
-                cout << (*store)[i] << " ";
-            cout << "\n";*/
-        }
+        if (value == other.value)
+            return *this;
+        if (--value->ptr_cnt == 0)
+            delete value;
+        value = other.value;
+        ++value->ptr_cnt;
         return *this;
     }
 
-    size_t size() const {
-        return (size_t)sze;
-    }
-
-    void resize(int n_size) {
-        if (n_size < 0) {
-            /// exception !!!
-        } else if (n_size <= S_SIZE) {
-            for (int i = 0; i < S_SIZE; ++i)
-                small[i] = 0;
-            delete store;
-            store = NULL;
-        } else {
-            store = new vector<T>(n_size);
+    const T& operator[] (int i) const {
+        if (i > value->sze || i < 0) {
+            /// exception !!!!!!1
         }
-        sze = n_size;
-    }
-
-    T operator[] (int i) const {
-        return (sze <= S_SIZE ? small[i] : (*store)[i]);
+        return (value->sze <= value->S_SIZE ? value->small[i] : (*value->store)[i]);
     }
 
     T & operator[] (int i) {
-        //if (i > sze) cout<<"?!?!?";
-        return (sze <= S_SIZE ? small[i] : (*store)[i]);
+        if (i > value->sze || i < 0) {
+            /// exception !!!!!!1
+        }
+        if (value->ptr_cnt > 1) {
+            --value->ptr_cnt;
+            value = new vector_value(value);
+            ++value->ptr_cnt;
+        }
+        return (value->sze <= value->S_SIZE ? value->small[i] : (*value->store)[i]);
+    }
+
+    size_t size() const {
+        return (size_t)value->sze;
+    }
+
+    void resize(int n_size) {
+        value = new vector_value(n_size);
+        value->ptr_cnt++;
     }
 
     void push_back(T x) {
-        // we're usng small object
-        if (sze < S_SIZE) {
-            /*cout << "we're pushing back to small obj ...\n";*/
-            small[sze] = x;
-            /*cout << "small object exists: \n";
-            for (int i = 0; i < S_SIZE; ++i)
-                cout << small[i] << " ";
-            cout << "\n";*/
-        } else if (sze == S_SIZE) {
-            /*cout << "we're creating big obj ... \n";
-            cout << "small object exists: \n";
-            for (int i = 0; i < S_SIZE; ++i)
-                cout << small[i] << " ";
-            cout << "\n";*/
-
-            // we should use big object
-            store = new vector<T>(S_SIZE);
-            for (int i = 0; i < S_SIZE; ++i) {
-                (*store)[i] = small[i];
-                /*cout << i << " " << "\n";
-                cout << "sizeof store " << sizeof(store) << "\n";
-                cout << "sizeof small " << sizeof(small) << "\n";
-                cout << i << " small object exists: \n";
-                for (int i = 0; i < S_SIZE; ++i)
-                    cout << small[i] << " ";
-                cout << "\n";*/
-            }
-            (*store).push_back(x);
-            /*cout << "current size of big obj after PB is " << (*store).size() << "\n";
-
-            cout << "big object exists: \n";
-            for (int i = 0; i < (int)(*store).size(); ++i)
-                cout << (*store)[i] << " ";
-            cout << "\n";*/
+        if (value->ptr_cnt > 1) {
+            --value->ptr_cnt;
+            value = new vector_value(value);
+            ++value->ptr_cnt;
         }
-        // we're using big object
-        else
-            (*store).push_back(x);
-        ++sze;
+        value->push_back(x);
     }
-
     void pop_back() {
-        // we're using big object
-        if (sze > S_SIZE) {
-            /*cout << "we're popping from big obj ...\n";*/
-            (*store).pop_back();
-            // we can use small object
-            if (sze - 1 == S_SIZE) {
-                /*cout << "we're copying everything to big obj ...\n";*/
-                // copying to small object
-                for (int i = 0; i < S_SIZE; ++i)
-                    small[i] = (*store)[i];
-                // we don't need big object anymore
-                delete store;
-                store = NULL;
-                /*cout << "we've done with it ...\n";*/
-            }
-        } else if (sze == 0) {
-            /// exception !!!!!!!!!!!!!
+        if (value->ptr_cnt > 1) {
+            --value->ptr_cnt;
+            value = new vector_value(value);
+            ++value->ptr_cnt;
         }
-        --sze;
+        value->pop_back();
     }
 
-    T back() const {
-        if (sze <= S_SIZE && sze > 0)
-            return small[sze - 1];
-        else if (sze > S_SIZE) {
-            /*cout << "we're extracting from big obj ... \n";*/
-            return (*store).back();
-        } else {
-            /// exception !!!!!!!!!!!!!
-            //throw "vector is empty";
-        }
+    T back() {
+        return value->back();
     }
 };
 

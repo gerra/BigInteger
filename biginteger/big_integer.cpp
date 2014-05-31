@@ -201,14 +201,32 @@ void big_integer::subtract(const big_integer& b) {
         add(neg_b);
         return;
     }
-    if (abs() < b.abs()) {
-        big_integer copy_b;
-        copy_b.copy_to(b);
+    /////////////////////////////////////////
+    /// abs() < b.abs()
+    /////////////////////////////////////////
+    big_integer copy_b;
+    copy_b.copy_to(b);
+    bool this_was_changed = (sign == -1);
+    bool b_was_changed = (copy_b.sign == -1);
+    absolute();
+    copy_b.absolute();
+    int comp = cmp(copy_b);
+    if (comp < 0) {
+        if (this_was_changed)
+            negate();
+        if (b_was_changed)
+            copy_b.negate();
+
         copy_b.subtract(*this);
         copy_b.negate();
         copy_to(copy_b);
         return;
     }
+    if (this_was_changed)
+        negate();
+    if (b_was_changed)
+        copy_b.negate();
+    ///////////////////////////////////////
     int carry = 0;
     for (int i = 0; i < (int)b.a.size() || carry; ++i) {
         int cur = a[i];
@@ -218,9 +236,12 @@ void big_integer::subtract(const big_integer& b) {
             cur += BASE;
         a[i] = cur;
     }
+
     delete_nils();
-    if (is_zero())
-        *this = 0;
+    if (is_zero()) {
+        big_integer res;
+        copy_to(res);
+    }
 }
 
 void big_integer::multiply(const big_integer& b) {
@@ -231,7 +252,7 @@ void big_integer::multiply(const big_integer& b) {
         return;
     }
 
-    res.a.resize((int)a.size() + (int)b.a.size() + 5);
+    res.a.resize((int)a.size() + (int)b.a.size() + 1);
     for (int i = 0; i < (int)a.size(); ++i) {
         int carry = 0;
         for (int j = 0; j < (int)b.a.size() || carry; ++j) {
