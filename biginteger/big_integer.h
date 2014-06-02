@@ -182,6 +182,7 @@ public:
     }
 
     void resize(int n_size) {
+        delete value;
         value = new vector_value(n_size);
         value->ptr_cnt++;
     }
@@ -216,8 +217,8 @@ private:
     const static int ISZE = 32; // size of a[]'s element
     const static UI BASE = (UI)(1U << BSZE);
     int sign;
-    //vector<UI> a;
-    my_vector<UI> a;
+    vector<UI> a;
+    //my_vector<UI> a;
 public:
     big_integer();
     ~big_integer();

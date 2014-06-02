@@ -6,7 +6,8 @@ big_integer::big_integer() {
     sign = 0;
 }
 
-big_integer::~big_integer() {}
+big_integer::~big_integer() {
+}
 
 big_integer::big_integer(const big_integer& other) {
     int comp = cmp(other);
@@ -246,6 +247,7 @@ void big_integer::subtract(const big_integer& b) {
 
 void big_integer::multiply(const big_integer& b) {
     big_integer res;
+
     res.sign = sign * b.sign;
     if (res.sign == 0) {
         copy_to(res);
@@ -767,6 +769,7 @@ std::string to_string(const big_integer &a) {
     }
     for (int i = last - 1; i >= 0; --i)
         res += char_res[i];
+    delete [] char_res;
     return res;
 }
 
